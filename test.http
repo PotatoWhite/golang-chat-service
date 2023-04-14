@@ -1,0 +1,8 @@
+### create-room
+POST localhost:8080/chat
+Content-Type: application/json
+
+{
+  "title": "room1",
+  "userNickName": "user1"
+}
