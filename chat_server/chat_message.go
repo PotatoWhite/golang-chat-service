@@ -1,6 +1,12 @@
 package chat_server
 
-type chatMessage struct {
-	Author   string `json:"author"`
-	Contents string `json:"contents"`
+type PubSubMessage struct {
+	messageType int
+	message     Message
+}
+
+type Message struct {
+	RoomId       string
+	UserNickname string
+	Message      string
 }

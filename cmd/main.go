@@ -17,28 +17,34 @@ func main() {
 	log.Infof("config: %+v", cfg)
 
 	// connect to chat_redis
-	if c, e := chat_redis.OpenNewRedisClient(&cfg.Redis); e != nil {
+	rc, e := chat_redis.OpenNewRedisClient(&cfg.Redis)
+	if e != nil {
 		log.Fatalf("failed to init chat_redis, %v", e)
 	} else {
 		log.Infof("chat_redis connected : %s:%d", cfg.Redis.Host, cfg.Redis.Port)
-		defer c.Close()
+		defer rc.Close()
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	// start chat server
-	svr := chat_server.InitChatServer(ctx)
+	svr := chat_server.InitChatServer(ctx, rc)
 	svr.StartMonitor(1)
 
 	// init gin
 	eng := gin.Default()
 	chatGrp := eng.Group("/chat")
-
 	chatApi := chat_api.AddChatApis(chatGrp, svr)
 	if chatApi != nil {
 		log.Fatalf("failed to add chat apis")
 	}
+
+	//msgGrp := eng.Group("/ws")
+	//msgApi := chat_message.AddMessageApis(msgGrp, svr)
+	//if msgApi != nil {
+	//	log.Fatalf("failed to add message apis")
+	//}
 
 	// start http server
 	if e := eng.Run(fmt.Sprintf(":%d", cfg.Server.Port)); e != nil {

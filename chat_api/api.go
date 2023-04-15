@@ -16,6 +16,7 @@ func AddChatApis(grp *gin.RouterGroup, srv *chat_server.ChatServer) error {
 	grp.GET(":roomId", handleGetRoomInfo)
 	grp.POST("", handleCreateAndJoinRoom)
 	grp.POST(":roomId/join", handleJoinRoom)
+	grp.POST(":roomId/message", handleSendMessage)
 	grp.DELETE(":roomId", handleCloseRoom)
 
 	return nil
@@ -121,4 +122,31 @@ func handleCloseRoom(c *gin.Context) {
 
 	// internal server error
 	internalServerError(c, fmt.Errorf("failed to close room : %v", room))
+}
+
+func handleSendMessage(c *gin.Context) {
+	roomId, err := uuid.Parse(c.Param("roomId"))
+	if err != nil {
+		badRequest(c, err)
+		return
+	}
+
+	room := chatSvr.GetRoom(roomId)
+	if room == nil {
+		noContent(c, nil)
+		return
+	}
+
+	// get Request Body
+	var rb SendMessageRequest
+	if err := c.ShouldBindJSON(&rb); err != nil {
+		badRequest(c, err)
+		return
+	}
+
+	// send message to Redis
+
+	c.JSON(http.StatusOK, gin.H{
+		"room": room,
+	})
 }

@@ -3,6 +3,7 @@ package chat_server
 import (
 	"context"
 	"fmt"
+	"github.com/go-redis/redis"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"log"
@@ -17,9 +18,10 @@ var mu sync.Mutex
 type ChatServer struct {
 	Rooms sync.Map
 	ctx   context.Context
+	rc    *redis.Client
 }
 
-func InitChatServer(ctx context.Context) *ChatServer {
+func InitChatServer(ctx context.Context, rc *redis.Client) *ChatServer {
 	mu.Lock()
 	defer mu.Unlock()
 
@@ -28,9 +30,11 @@ func InitChatServer(ctx context.Context) *ChatServer {
 		server = &ChatServer{
 			Rooms: sync.Map{},
 			ctx:   ctx,
+			rc:    rc,
 		}
 	}
 
+	go server.RedisSubscribe()
 	return server
 }
 
@@ -112,7 +116,7 @@ func (s *ChatServer) LeaveRoom(roomId uuid.UUID, user *User) error {
 	return nil
 }
 
-func (s *ChatServer) Broadcast(roomId uuid.UUID, messageType int, message []byte) error {
+func (s *ChatServer) Broadcast(roomId uuid.UUID, message []byte) error {
 	// if chatroom exists, remove user from chatroom
 	value, ok := s.Rooms.Load(roomId)
 	if !ok {
@@ -124,7 +128,7 @@ func (s *ChatServer) Broadcast(roomId uuid.UUID, messageType int, message []byte
 	// if chatroom exists, broadcast message to chatroom
 	if room != nil {
 		mu.Lock()
-		room.Broadcast(messageType, message)
+		log.Printf("Broadcasting message to room %s", roomId)
 		mu.Unlock()
 	} else {
 		return fmt.Errorf("chatroom %s does not exist", roomId)
@@ -166,4 +170,34 @@ func (s *ChatServer) StartMonitor(second time.Duration) {
 			}
 		}
 	}()
+}
+
+// RedisSubscribe is listening to redis channel and broadcast message to chatroom
+func (s *ChatServer) RedisSubscribe() {
+	pubsub := s.rc.Subscribe("chatroom")
+	defer pubsub.Close()
+
+	for {
+		select {
+		case <-s.ctx.Done():
+			return
+		default:
+			msg, err := pubsub.ReceiveMessage()
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+
+			mu.Lock()
+			// broadcast message to chatroom
+			s.Broadcast(uuid.MustParse(msg.Payload), []byte(msg.Payload))
+			mu.Unlock()
+
+		}
+	}
+}
+
+// PublishMessage is publishing message to redis
+func (s *ChatServer) PublishMessage(msg Message) {
+	s.rc.Publish("chatroom", msg)
 }

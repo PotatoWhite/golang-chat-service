@@ -9,3 +9,9 @@ type JoinRoomRequest struct {
 	RoomId       string
 	UserNickname string
 }
+
+type SendMessageRequest struct {
+	RoomId       string
+	UserNickname string
+	Message      string
+}
