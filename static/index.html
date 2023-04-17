@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Test Client</title>
+    <style>
+        body {
+            background-color: #f8f8f8;
+            font-family: Arial, sans-serif;
+        }
+        h1 {
+            color: #333333;
+            margin-bottom: 16px;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 16px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 16px;
+            width: 100%;
+            max-width: 400px;
+        }
+        label {
+            color: #666666;
+            margin-bottom: 8px;
+        }
+        input[type="text"] {
+            background-color: #ffffff;
+            border: none;
+            border-radius: 4px;
+            color: #333333;
+            font-size: 16px;
+            padding: 8px 12px;
+            margin-bottom: 8px;
+            box-shadow: 0px 2px 2px rgba(0, 0, 0, 0.1);
+            width: 100%;
+        }
+        input[type="submit"] {
+            background-color: #007bff;
+            border: none;
+            border-radius: 4px;
+            color: #ffffff;
+            font-size: 16px;
+            padding: 8px 12px;
+            margin-bottom: 16px;
+            cursor: pointer;
+        }
+        input[type="submit"]:hover {
+            background-color: #0069d9;
+        }
+        ul {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            max-width: 400px;
+        }
+        li {
+            background-color: #ffffff;
+            border-radius: 4px;
+            box-shadow: 0px 2px 2px rgba(0, 0, 0, 0.1);
+            color: #333333;
+            font-size: 16px;
+            margin-bottom: 8px;
+            padding: 8px 12px;
+        }
+        .json-input {
+            height: 100px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>WebSocket Test Client</h1>
+    <form>
+        <label for="server-url-input">Server URL:</label>
+        <input type="text" id="server-url-input" placeholder="Enter the WebSocket server URL...">
+        <input type="submit" id="connect-button" value="Connect">
+    </form>
+    <ul id="message-list"></ul>
+    <form>
+        <label for="json-input">JSON Input:</label>
+        <input type="text" id="json-input" class="json-input" placeholder="Enter JSON data...">
+        <button id="send-button">Send</button>
+    </form>
+</div>
+<script>
+    // Connect to the WebSocket server when the "Connect" button is clicked
+    const connectButton = document.getElementById("connect-button");
+    connectButton.addEventListener("click", () => {
+        const serverUrlInput = document.getElementById("server-url-input");
+        const serverUrl = serverUrlInput.value;
+        const socket = new WebSocket(serverUrl);
+
+        // Add received messages to the message list
+        const messageList = document.getElementById("message-list");
+        socket.addEventListener("message", (event) => {
+            const message = event.data;
+            const li = document.createElement("li");
+            li.textContent = message;
+            messageList.appendChild(li);
+        });
+
+        // Send a message to the server when the "Send" button is clicked
+        const sendButton = document.getElementById("send-button");
+        sendButton.addEventListener("click", () => {
+            const jsonInput = document.getElementById("json-input");
+            const json = jsonInput.value;
+            socket.send(json);
+            jsonInput.value = "";
+        });
+
+        // Handle errors
+        socket.addEventListener("error", (event) => {
+            console.error("WebSocket error:", event);
+        });
+    });
+</script>
+</body>
+</html>

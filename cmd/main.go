@@ -4,7 +4,8 @@ import (
 	"context"
 	"fmt"
 	"github.com/gin-gonic/gin"
-	"study02-chat-service/chat_api"
+	"study02-chat-service/chat_manager_api"
+	"study02-chat-service/chat_message_api"
 	"study02-chat-service/chat_redis"
 	"study02-chat-service/chat_server"
 	"study02-chat-service/config"
@@ -35,16 +36,16 @@ func main() {
 	// init gin
 	eng := gin.Default()
 	chatGrp := eng.Group("/chat")
-	chatApi := chat_api.AddChatApis(chatGrp, svr)
+	chatApi := chat_manager_api.AddChatApis(chatGrp, svr)
 	if chatApi != nil {
 		log.Fatalf("failed to add chat apis")
 	}
 
-	//msgGrp := eng.Group("/ws")
-	//msgApi := chat_message.AddMessageApis(msgGrp, svr)
-	//if msgApi != nil {
-	//	log.Fatalf("failed to add message apis")
-	//}
+	msgGrp := eng.Group("/ws")
+	msgApi := chat_message_api.AddChatMsgApis(msgGrp, svr)
+	if msgApi != nil {
+		log.Fatalf("failed to add message apis")
+	}
 
 	// start http server
 	if e := eng.Run(fmt.Sprintf(":%d", cfg.Server.Port)); e != nil {

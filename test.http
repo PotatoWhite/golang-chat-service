@@ -6,3 +6,42 @@ Content-Type: application/json
   "title": "room1",
   "userNickName": "user1"
 }
+
+### Send Message
+POST localhost:8080/chat/c5d6b1e4-3bd1-43fa-862a-e68182fbb976/message
+Content-Type: application/json
+
+{
+  "userNickName": "user1",
+  "message": "test1234"
+}
+
+### Delete Room
+DELETE localhost:8080/chat/03d2932c-5efd-4184-876e-af5c127e4061?userId=09520b73-772b-4d42-8aa8-2a4f14eedab6
+Content-Type: application/json
+
+{
+  "userNickName": "user1"
+}
+
+### Websocket
+WEBSOCKET localhost:8080/ws/observer
+Content-Type: application/json
+
+{
+  "roomId":"c5d6b1e4-3bd1-43fa-862a-e68182fbb976",
+  "userId":"c64bffde-8223-40e7-98de-cd8706204667",
+  "type" :"join",
+  "payload": ""
+}
+
+### Websocket
+WEBSOCKET localhost:8080/ws/observer
+Content-Type: application/json
+
+{
+  "roomId":"c5d6b1e4-3bd1-43fa-862a-e68182fbb976",
+  "userId":"c64bffde-8223-40e7-98de-cd8706204667",
+  "type" :"join",
+  "payload": ""
+}
