@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 	"github.com/gin-gonic/gin"
-	"study02-chat-service/chat_manager_api"
-	"study02-chat-service/chat_message_api"
-	"study02-chat-service/chat_redis"
+	"study02-chat-service/api_restful"
+	"study02-chat-service/api_websocket"
 	"study02-chat-service/chat_server"
 	"study02-chat-service/config"
 	"study02-chat-service/log"
+	"study02-chat-service/redis"
 )
 
 func main() {
@@ -17,12 +17,12 @@ func main() {
 	cfg := config.LoadConfigOrExit()
 	log.Infof("config: %+v", cfg)
 
-	// connect to chat_redis
-	rc, e := chat_redis.OpenNewRedisClient(&cfg.Redis)
+	// connect to redis
+	rc, e := redis.OpenNewRedisClient(&cfg.Redis)
 	if e != nil {
-		log.Fatalf("failed to init chat_redis, %v", e)
+		log.Fatalf("failed to init redis, %v", e)
 	} else {
-		log.Infof("chat_redis connected : %s:%d", cfg.Redis.Host, cfg.Redis.Port)
+		log.Infof("redis connected : %s:%d", cfg.Redis.Host, cfg.Redis.Port)
 		defer rc.Close()
 	}
 
@@ -36,13 +36,13 @@ func main() {
 	// init gin
 	eng := gin.Default()
 	chatGrp := eng.Group("/chat")
-	chatApi := chat_manager_api.AddChatApis(chatGrp, svr)
+	chatApi := api_restful.AddChatApis(chatGrp, svr)
 	if chatApi != nil {
 		log.Fatalf("failed to add chat apis")
 	}
 
 	msgGrp := eng.Group("/ws")
-	msgApi := chat_message_api.AddChatMsgApis(msgGrp, svr)
+	msgApi := api_websocket.AddChatMsgApis(msgGrp, svr)
 	if msgApi != nil {
 		log.Fatalf("failed to add message apis")
 	}

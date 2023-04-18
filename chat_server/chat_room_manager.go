@@ -2,11 +2,9 @@ package chat_server
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"github.com/go-redis/redis"
 	"github.com/google/uuid"
-	"github.com/gorilla/websocket"
 	"log"
 	"sync"
 	"time"
@@ -43,10 +41,12 @@ func (s *ChatServer) OpenRoom(title string, owner *User) *chatroom {
 	s.Rooms.Store(room.Id, room)
 	room.AddUser(owner)
 
-	go server.RedisSubscribe(room.Id)
+	go server.StartRoomChannel(room.Id)
 	return room
 }
 
+
+// send close message to all users in chatroom and delete chatroom from server
 func (s *ChatServer) CloseRoom(roomId uuid.UUID, user *User) error {
 	value, ok := s.Rooms.Load(roomId)
 	if !ok {
@@ -54,23 +54,18 @@ func (s *ChatServer) CloseRoom(roomId uuid.UUID, user *User) error {
 	}
 
 	room := value.(*chatroom)
-
-	// if requesting from Owner, last user, or chatroom is empty, close chatroom
-	if room.Owner.Id == user.Id || len(room.users) <= 1 || room == nil {
-		room.Broadcast(websocket.CloseMessage, &Message{
-			UserNickname: "Operator",
-			RoomId:       roomId,
-			Message:      fmt.Sprintf("Chatroom %s is closed", room.Title),
-		})
-		defer room.Close()
+	if room != nil {
+		// if user is owner, close chatroom
+		if room.Owner.Id == user.Id {
+			room.Close()
+			s.Rooms.Delete(roomId)
+			log.Printf("Room %s is closed", room.Id)
+		} else {
+			return fmt.Errorf("user %s is not owner of chatroom %s", user.Id, roomId)
+		}
 	} else {
-		// reject request
-		return fmt.Errorf("user %s is not the Owner of chatroom %s", user.Id, roomId)
+		return fmt.Errorf("chatroom %s does not exist", roomId)
 	}
-
-	// delete chatroom from server
-	s.Rooms.Delete(roomId)
-
 	return nil
 }
 
@@ -101,27 +96,6 @@ func (s *ChatServer) LeaveRoom(roomId uuid.UUID, user *User) error {
 	room := value.(*chatroom)
 	if room != nil {
 		room.RemoveUser(user)
-	} else {
-		return fmt.Errorf("chatroom %s does not exist", roomId)
-	}
-
-	return nil
-}
-
-func (s *ChatServer) Broadcast(roomId uuid.UUID, msg Message) error {
-	// if chatroom exists, remove user from chatroom
-	value, ok := s.Rooms.Load(roomId)
-	if !ok {
-		return fmt.Errorf("chatroom %s does not exist", roomId)
-	}
-
-	room := value.(*chatroom)
-
-	// if chatroom exists, broadcast message to chatroom
-	if room != nil {
-		mu.Lock()
-		s.rc.Publish(roomId.String(), msg)
-		mu.Unlock()
 	} else {
 		return fmt.Errorf("chatroom %s does not exist", roomId)
 	}
@@ -162,64 +136,4 @@ func (s *ChatServer) StartMonitor(second time.Duration) {
 			}
 		}
 	}()
-}
-
-// RedisSubscribe is listening to redis channel and broadcast message to chatroom
-func (s *ChatServer) RedisSubscribe(roomId uuid.UUID) {
-	pubsub := s.rc.Subscribe(roomId.String())
-	defer pubsub.Close()
-
-	for {
-		select {
-		case <-s.ctx.Done():
-			return
-		default:
-			msg, err := pubsub.ReceiveMessage()
-			if err != nil {
-				log.Println(err)
-				continue
-			}
-
-			var message Message
-			err = json.Unmarshal([]byte(msg.Payload), &message)
-			if err != nil {
-				log.Println(err)
-				continue
-			}
-
-			room := s.GetRoom(message.RoomId)
-			if room != nil {
-				for _, user := range room.users {
-					var msgBytes []byte
-					msgBytes, err = json.Marshal(message)
-					if err != nil {
-						log.Println(err)
-						continue
-					}
-
-					if user.HandleMessage != nil {
-						user.HandleMessage(msgBytes)
-					} else {
-						log.Printf("User %s is not connected", user.Id)
-					}
-				}
-			}
-
-		}
-	}
-
-}
-
-// PublishMessage is publishing message to redis
-func (s *ChatServer) PublishMessage(roomId uuid.UUID, msg *Message) {
-	jsonPayload, err := json.Marshal(msg)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
-	publish := s.rc.Publish(roomId.String(), jsonPayload)
-	if publish.Err() != nil {
-		log.Println(publish.Err())
-	}
 }

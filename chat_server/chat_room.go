@@ -6,12 +6,12 @@ import (
 	"github.com/google/uuid"
 	"log"
 	"sync"
+	"time"
 )
 
 type chatroom struct {
 	Id     uuid.UUID
 	Title  string
-	ch     chan Message `json:"-"`
 	Owner  *User
 	users  map[uuid.UUID]*User
 	mu     sync.Mutex         `json:"-"`
@@ -41,16 +41,11 @@ func (r *chatroom) RemoveUser(user *User) {
 	delete(r.users, user.Id)
 }
 
-func (r *chatroom) Broadcast(messageType int, message *Message) {
-	r.ch <- *message
-}
-
 func New(title string, owner *User) *chatroom {
 	_, cancelFunc := context.WithCancel(context.Background())
 
 	room := &chatroom{
 		Id:     uuid.New(),
-		ch:     make(chan Message),
 		Title:  title,
 		Owner:  owner,
 		users:  make(map[uuid.UUID]*User),
@@ -61,6 +56,18 @@ func New(title string, owner *User) *chatroom {
 }
 
 func (r *chatroom) Close() {
+	// send closing message to all users
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	for _, user := range r.users {
+		user.HandleMessage([]byte("chatroom is closing"))
+		user.HandleMessage = nil
+	}
+
+	// remove all users
+	r.users = make(map[uuid.UUID]*User)
+
 	r.cancel()
 }
 
@@ -74,6 +81,9 @@ func (r *chatroom) CreateObserver(userId uuid.UUID, msgHandler func(message []by
 
 	// create & set handler
 	user.HandleMessage = msgHandler
+
+	// update last seen
+	r.UpdateLastSeen(user)
 
 	return nil
 }
@@ -89,4 +99,21 @@ func (r *chatroom) RemoveObserver(id uuid.UUID) {
 	// remove user
 	r.RemoveUser(user)
 
+}
+
+func (r *chatroom) UpdateObserver(id uuid.UUID) {
+	// get user
+	user, ok := r.users[id]
+	if !ok {
+		log.Printf("user %s does not exist in chatroom %s", id, r.Id)
+		return
+	}
+
+	// update user
+	r.UpdateLastSeen(user)
+
+}
+
+func (r *chatroom) UpdateLastSeen(user *User) {
+	user.LastSeen = time.Now().Unix()
 }

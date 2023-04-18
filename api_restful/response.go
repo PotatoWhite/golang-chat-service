@@ -1,4 +1,4 @@
-package chat_manager_api
+package api_restful
 
 import (
 	"fmt"

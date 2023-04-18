@@ -1,4 +1,4 @@
-package chat_message_api
+package api_websocket
 
 import (
 	"encoding/json"
@@ -84,6 +84,21 @@ func handleObserver(context *gin.Context) {
 			// remove observer
 			if userId, err := uuid.Parse(msg.UserId); err != nil {
 				room.RemoveObserver(userId)
+				break
+			}
+		case "ping":
+			// ping
+			room := chatSvr.GetRoom(msg.RoomId)
+			if room == nil {
+				log.Printf("room not found: %s", msg.RoomId)
+				// disconnect
+				conn.WriteMessage(websocket.CloseMessage, []byte{})
+				return
+			}
+
+			// update observer
+			if userId, err := uuid.Parse(msg.UserId); err != nil {
+				room.UpdateObserver(userId)
 				break
 			}
 		default:

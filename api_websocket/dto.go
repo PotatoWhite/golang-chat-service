@@ -1,11 +1,11 @@
-package chat_message_api
+package api_websocket
 
 import (
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
 
-// chat_message_api.go has two functions:
+// api_websocket.go has two functions:
 // 1. JoinRoom
 // 2. RelayMessage from redis subs to Websocket Client from browser
 

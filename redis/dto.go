@@ -1,4 +1,4 @@
-package chat_redis
+package redis
 
 import (
 	"github.com/google/uuid"
