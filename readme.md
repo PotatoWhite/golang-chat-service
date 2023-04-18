@@ -26,6 +26,16 @@ go get github.com/gin-gonic/gin
 go get github.com/google/uuid
 ```
 
+## build
+```shell
+go build -o main cmd/main.go
+```
+
 # Application Architecture
 
 ![img.png](img.png)
+
+# How to run
+```shell
+./main
+```
